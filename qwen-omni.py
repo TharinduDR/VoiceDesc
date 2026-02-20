@@ -1,6 +1,5 @@
 from transformers import Qwen2_5OmniForConditionalGeneration, Qwen2_5OmniProcessor
-import librosa
-import torch
+from qwen_omni_utils import process_mm_info
 
 model_name = "Qwen/Qwen2.5-Omni-7B"
 
@@ -10,14 +9,12 @@ model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
 processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
 
 audio_path = "my_speech.wav"
-audio, sr = librosa.load(audio_path, sr=16000)
 
 prompt = (
     "Describe this speech in detail, including the language spoken, "
     "speaker characteristics, emotion, and content."
 )
 
-# Use the default system prompt (avoids the warning)
 conversation = [
     {
         "role": "system",
@@ -45,34 +42,30 @@ text = processor.apply_chat_template(
     conversation, tokenize=False, add_generation_prompt=True
 )
 
-# Build inputs manually since processor ignores 'audios'
-# 1. Tokenize text
-text_inputs = processor.tokenizer(
-    [text], return_tensors="pt", padding=True
+# This is why you need qwen_omni_utils — it properly extracts
+# audio features with the right keys the model expects
+audios, images, videos = process_mm_info(conversation, use_audio_in_video=True)
+
+inputs = processor(
+    text=text,
+    audios=audios,
+    images=images,
+    videos=videos,
+    return_tensors="pt",
+    padding=True,
 )
+inputs = inputs.to(model.device)
 
-# 2. Process audio via the feature extractor
-audio_inputs = processor.feature_extractor(
-    [audio], sampling_rate=16000, return_tensors="pt"
-)
-
-# 3. Combine
-inputs = {**text_inputs, **audio_inputs}
-inputs = {k: v.to(model.device) for k, v in inputs.items()}
-
-# generate() returns a tuple: (text_ids, audio_ids)
-# We only need the text output
-outputs = model.generate(
+output = model.generate(
     **inputs,
     max_new_tokens=256,
-    return_audio=False,  # text only, skip audio generation
+    return_audio=False,
 )
 
-# Handle both tuple and tensor returns
-if isinstance(outputs, tuple):
-    text_ids = outputs[0]
+if isinstance(output, tuple):
+    text_ids = output[0]
 else:
-    text_ids = outputs
+    text_ids = output
 
 generated_ids = text_ids[:, inputs["input_ids"].size(1):]
 response = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
