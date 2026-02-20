@@ -8,7 +8,6 @@ model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
 )
 processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
 
-# Load audio manually instead of using qwen_omni_utils
 audio_path = "my_speech.wav"
 audio, sr = librosa.load(audio_path, sr=16000)
 
@@ -17,10 +16,13 @@ prompt = (
     "speaker characteristics, emotion, and content."
 )
 
+# Fixed: system content must also be a list of dicts
 conversation = [
     {
         "role": "system",
-        "content": "You are a helpful assistant that analyzes audio clips.",
+        "content": [
+            {"type": "text", "text": "You are a helpful assistant that analyzes audio clips."}
+        ],
     },
     {
         "role": "user",
@@ -35,7 +37,6 @@ text = processor.apply_chat_template(
     conversation, tokenize=False, add_generation_prompt=True
 )
 
-# Pass audio directly — no qwen_omni_utils needed
 inputs = processor(
     text=text,
     audios=[audio],
