@@ -11,8 +11,7 @@ processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
 audio_path = "my_speech.wav"
 
 prompt = (
-    "Describe this speech in detail, including the language spoken, "
-    "speaker characteristics, emotion, and content."
+    "Describe the speaker's voice. Provide as many qualities of the voice as possible, and make them as detailed as possible. The overall description should allow someone to be able to identify that voice by listening to it and identifying the same features."
 )
 
 conversation = [

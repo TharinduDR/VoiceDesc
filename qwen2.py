@@ -15,8 +15,7 @@ audio_path = "my_speech.wav"
 audio, sr = librosa.load(audio_path, sr=16000)
 
 prompt = (
-    "Describe this speech in detail, including the language spoken, "
-    "speaker characteristics, emotion, and content."
+    "Describe the speaker's voice. Provide as many qualities of the voice as possible, and make them as detailed as possible. The overall description should allow someone to be able to identify that voice by listening to it and identifying the same features."
 )
 
 conversation = [
