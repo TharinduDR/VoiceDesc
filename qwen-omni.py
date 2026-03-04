@@ -1,5 +1,6 @@
 from transformers import Qwen2_5OmniForConditionalGeneration, Qwen2_5OmniProcessor
-import librosa
+from qwen_omni_utils import process_mm_info
+import os
 
 model_name = "Qwen/Qwen2.5-Omni-7B"
 
@@ -8,8 +9,10 @@ model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
 )
 processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
 
-audio_path = "my_speech.wav"
-audio, sr = librosa.load(audio_path, sr=16000)
+# Use ABSOLUTE path — this is critical
+audio_path = os.path.abspath("my_speech.wav")
+print(f"Audio path: {audio_path}")
+print(f"File exists: {os.path.exists(audio_path)}")
 
 prompt = (
     "Describe the speaker's voice. Provide as many qualities of the voice "
@@ -39,23 +42,30 @@ conversation = [
     },
 ]
 
-# Step 1: Get text template (returns a list!)
+# Step 1: Render chat template as text
 text = processor.apply_chat_template(
     conversation, tokenize=False, add_generation_prompt=True
 )
 
-# Step 2: Pass through processor with audio= (singular)
-# text is already a list, which is what the processor expects
+# Step 2: Use process_mm_info to properly load and process audio
+audios, images, videos = process_mm_info(conversation, use_audio_in_video=True)
+
+print(f"Number of audio clips: {len(audios)}")
+if audios:
+    print(f"Audio array shape: {audios[0].shape}, dtype: {audios[0].dtype}")
+
+# Step 3: Pass through processor with audio= (SINGULAR)
 inputs = processor(
     text=text,
-    audio=[audio],
-    sampling_rate=16000,
+    audio=audios,
+    images=images,
+    videos=videos,
     return_tensors="pt",
     padding=True,
 )
 
-# Verify audio features are in inputs
-print("Input keys:", list(inputs.keys()))
+# Debug: check token count — should be MUCH more than 915
+print(f"Input keys: {list(inputs.keys())}")
 for k, v in inputs.items():
     if hasattr(v, 'shape'):
         print(f"  {k}: shape={v.shape}")
