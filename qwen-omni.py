@@ -1,4 +1,5 @@
 from transformers import Qwen2_5OmniForConditionalGeneration, Qwen2_5OmniProcessor
+import librosa
 
 model_name = "Qwen/Qwen2.5-Omni-7B"
 
@@ -8,10 +9,12 @@ model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
 processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
 
 audio_path = "my_speech.wav"
+audio, sr = librosa.load(audio_path, sr=16000)
 
 prompt = (
     "Describe the speaker's voice. Provide as many qualities of the voice as possible, and make them as detailed as possible. The overall description should allow someone to be able to identify that voice by listening to it and identifying the same features."
 )
+
 conversation = [
     {
         "role": "system",
@@ -35,14 +38,18 @@ conversation = [
     },
 ]
 
-# New approach: apply_chat_template handles EVERYTHING
-inputs = processor.apply_chat_template(
-    conversation,
-    load_audio_from_video=True,
-    add_generation_prompt=True,
-    tokenize=True,
-    return_dict=True,
+# Step 1: Get tokenized text only (don't let it try to load audio)
+text = processor.apply_chat_template(
+    conversation, tokenize=False, add_generation_prompt=True
+)
+
+# Step 2: Pass text + audio separately with correct param name
+inputs = processor(
+    text=text,
+    audio=[audio],          # singular 'audio', not 'audios'
+    sampling_rate=16000,
     return_tensors="pt",
+    padding=True,
 )
 inputs = inputs.to(model.device)
 
