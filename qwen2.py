@@ -9,7 +9,6 @@ model = Qwen2AudioForConditionalGeneration.from_pretrained(
     device_map="auto",
     torch_dtype="auto",
 )
-
 # Load audio at 16 kHz
 audio_path = "my_speech.wav"
 audio, sr = librosa.load(audio_path, sr=16000)
@@ -76,3 +75,5 @@ response = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 print("=" * 60)
 print("Description:")
 print(response)
+
+# The speaker's voice is English with a female tone and reflects a neutral mood.
