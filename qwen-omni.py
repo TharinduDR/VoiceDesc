@@ -28,13 +28,11 @@ for dataset in os.listdir(data_dir):
             continue
 
         audio_path = os.path.abspath(os.path.join(dataset_path, filename))
-        stem = os.path.splitext(filename)[0]  # e.g. "001-2-060310"
+        stem = os.path.splitext(filename)[0]
 
-        # Output: output/DyViS/001-2-060310/qwen-omni.txt
         out_dir = os.path.join(output_base, dataset, stem)
         out_file = os.path.join(out_dir, "qwen-omni.txt")
 
-        # Skip if already processed
         if os.path.exists(out_file):
             print(f"[SKIP] {out_file} already exists")
             continue
@@ -64,13 +62,18 @@ for dataset in os.listdir(data_dir):
             },
         ]
 
+        # Use process_mm_info to extract audio data from the conversation
+        audios, images, videos = process_mm_info(conversation, use_audio_in_video=False)
+
         inputs = processor.apply_chat_template(
             conversation,
-            load_audio_from_video=True,
             add_generation_prompt=True,
             tokenize=True,
             return_dict=True,
             return_tensors="pt",
+            audios=audios,    # pass audio data explicitly
+            images=images,
+            videos=videos,
         )
 
         inputs = inputs.to(model.device)
