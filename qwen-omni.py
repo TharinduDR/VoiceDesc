@@ -73,6 +73,10 @@ for dataset in os.listdir(data_dir):
         # Extract media from the conversation
         audios, images, videos = process_mm_info(conversation, use_audio_in_video=False)
 
+        print(f"[DEBUG] audios: {type(audios)}, len={len(audios) if audios else 0}")
+        if audios:
+            print(f"[DEBUG] audio[0] shape: {audios[0].shape if hasattr(audios[0], 'shape') else len(audios[0])}")
+
         # Call the processor with text + media together
         inputs = processor(
             text=text,
@@ -86,8 +90,12 @@ for dataset in os.listdir(data_dir):
 
         inputs = inputs.to(model.device)
 
+        print(f"[DEBUG] inputs keys: {list(inputs.keys())}")
+
         # Match dtype for float tensors
         for k, v in inputs.items():
+            if k == "input_features":
+                continue  # keep audio features in their native dtype
             if hasattr(v, "dtype") and v.dtype in (torch.float32, torch.float16, torch.bfloat16):
                 inputs[k] = v.to(model.dtype)
 
