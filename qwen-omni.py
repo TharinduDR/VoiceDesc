@@ -1,6 +1,7 @@
+import os
+import torch
 from transformers import Qwen2_5OmniForConditionalGeneration, Qwen2_5OmniProcessor
 from qwen_omni_utils import process_mm_info
-import os
 
 model_name = "Qwen/Qwen2.5-Omni-7B"
 
@@ -62,21 +63,33 @@ for dataset in os.listdir(data_dir):
             },
         ]
 
-        # Use process_mm_info to extract audio data from the conversation
-        audios, images, videos = process_mm_info(conversation, use_audio_in_video=False)
-
-        inputs = processor.apply_chat_template(
+        # Build the text prompt from the conversation (no media kwargs here)
+        text = processor.apply_chat_template(
             conversation,
             add_generation_prompt=True,
-            tokenize=True,
-            return_dict=True,
-            return_tensors="pt",
-            audios=audios,    # pass audio data explicitly
+            tokenize=False,
+        )
+
+        # Extract media from the conversation
+        audios, images, videos = process_mm_info(conversation, use_audio_in_video=False)
+
+        # Call the processor with text + media together
+        inputs = processor(
+            text=text,
+            audio=audios,
             images=images,
             videos=videos,
+            return_tensors="pt",
+            padding=True,
+            use_audio_in_video=False,
         )
 
         inputs = inputs.to(model.device)
+
+        # Match dtype for float tensors
+        for k, v in inputs.items():
+            if hasattr(v, "dtype") and v.dtype in (torch.float32, torch.float16, torch.bfloat16):
+                inputs[k] = v.to(model.dtype)
 
         output = model.generate(**inputs, max_new_tokens=256, return_audio=False)
 
