@@ -1,6 +1,6 @@
 import os
-from transformers import AutoModelForCausalLM, AutoProcessor, AutoTokenizer
 import torch
+from transformers import AutoModelForCausalLM, AutoProcessor, AutoTokenizer
 
 model_id = "mispeech/midashenglm-7b-0804-bf16"
 
