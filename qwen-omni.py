@@ -1,14 +1,17 @@
 import os
-import torch
-from transformers import Qwen2_5OmniForConditionalGeneration, Qwen2_5OmniProcessor
+import soundfile as sf
+from transformers import Qwen3OmniMoeForConditionalGeneration, Qwen3OmniMoeProcessor
 from qwen_omni_utils import process_mm_info
 
-model_name = "Qwen/Qwen2.5-Omni-7B"
+MODEL_PATH = "Qwen/Qwen3-Omni-30B-A3B-Captioner"
 
-model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
-    model_name, torch_dtype="auto", device_map="auto"
+model = Qwen3OmniMoeForConditionalGeneration.from_pretrained(
+    MODEL_PATH,
+    dtype="auto",
+    device_map="auto",
+    attn_implementation="flash_attention_2",
 )
-processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
+processor = Qwen3OmniMoeProcessor.from_pretrained(MODEL_PATH)
 
 prompt = (
     "Describe the speaker's voice. Provide as many qualities of the voice as possible, "
@@ -32,7 +35,7 @@ for dataset in os.listdir(data_dir):
         stem = os.path.splitext(filename)[0]
 
         out_dir = os.path.join(output_base, dataset, stem)
-        out_file = os.path.join(out_dir, "qwen-omni.txt")
+        out_file = os.path.join(out_dir, "qwen3-omni-captioner.txt")
 
         if os.path.exists(out_file):
             print(f"[SKIP] {out_file} already exists")
@@ -42,19 +45,6 @@ for dataset in os.listdir(data_dir):
 
         conversation = [
             {
-                "role": "system",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            "You are Qwen, a virtual human developed by the Qwen Team, "
-                            "Alibaba Group, capable of perceiving auditory and visual inputs, "
-                            "as well as generating text and speech."
-                        ),
-                    }
-                ],
-            },
-            {
                 "role": "user",
                 "content": [
                     {"type": "audio", "audio": audio_path},
@@ -63,51 +53,32 @@ for dataset in os.listdir(data_dir):
             },
         ]
 
-        # Build the text prompt from the conversation (no media kwargs here)
+        # Preparation for inference
         text = processor.apply_chat_template(
-            conversation,
-            add_generation_prompt=True,
-            tokenize=False,
+            conversation, add_generation_prompt=True, tokenize=False
         )
+        audios, _, _ = process_mm_info(conversation, use_audio_in_video=False)
 
-        # Extract media from the conversation
-        audios, images, videos = process_mm_info(conversation, use_audio_in_video=False)
-
-        print(f"[DEBUG] audios: {type(audios)}, len={len(audios) if audios else 0}")
-        if audios:
-            print(f"[DEBUG] audio[0] shape: {audios[0].shape if hasattr(audios[0], 'shape') else len(audios[0])}")
-
-        # Call the processor with text + media together
         inputs = processor(
             text=text,
             audio=audios,
-            images=images,
-            videos=videos,
             return_tensors="pt",
             padding=True,
             use_audio_in_video=False,
         )
+        inputs = inputs.to(model.device).to(model.dtype)
 
-        inputs = inputs.to(model.device)
+        # Inference
+        text_ids, audio = model.generate(
+            **inputs,
+            thinker_return_dict_in_generate=True,
+        )
 
-        print(f"[DEBUG] inputs keys: {list(inputs.keys())}")
-
-        # Match dtype for float tensors
-        for k, v in inputs.items():
-            if k == "input_features":
-                continue  # keep audio features in their native dtype
-            if hasattr(v, "dtype") and v.dtype in (torch.float32, torch.float16, torch.bfloat16):
-                inputs[k] = v.to(model.dtype)
-
-        output = model.generate(**inputs, max_new_tokens=256, return_audio=False)
-
-        if isinstance(output, tuple):
-            text_ids = output[0]
-        else:
-            text_ids = output
-
-        generated_ids = text_ids[:, inputs["input_ids"].size(1):]
-        response = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        response = processor.batch_decode(
+            text_ids.sequences[:, inputs["input_ids"].shape[1]:],
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )[0]
 
         os.makedirs(out_dir, exist_ok=True)
         with open(out_file, "w") as f:
