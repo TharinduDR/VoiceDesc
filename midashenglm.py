@@ -1,13 +1,15 @@
 import os
 from transformers import AutoModelForCausalLM, AutoProcessor, AutoTokenizer
+import torch
 
 model_id = "mispeech/midashenglm-7b-0804-bf16"
 
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
     trust_remote_code=True,
-    device_map="auto",
+    torch_dtype=torch.bfloat16,
 )
+model = model.to("cuda")
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
 
