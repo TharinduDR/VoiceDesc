@@ -9,7 +9,6 @@ model = Qwen3OmniMoeForConditionalGeneration.from_pretrained(
     MODEL_PATH,
     dtype="auto",
     device_map="auto",
-    attn_implementation="flash_attention_2",
 )
 processor = Qwen3OmniMoeProcessor.from_pretrained(MODEL_PATH)
 
