@@ -2,14 +2,13 @@ import os
 import torch
 from transformers import VoxtralForConditionalGeneration, AutoProcessor
 
-device = "cuda"
 repo_id = "mistralai/Voxtral-Small-24B-2507"
 
 processor = AutoProcessor.from_pretrained(repo_id)
 model = VoxtralForConditionalGeneration.from_pretrained(
     repo_id,
     torch_dtype=torch.bfloat16,
-    device_map=device,
+    device_map="auto",
 )
 
 prompt = (
@@ -53,7 +52,7 @@ for dataset in os.listdir(data_dir):
         ]
 
         inputs = processor.apply_chat_template(conversation)
-        inputs = inputs.to(device, dtype=torch.bfloat16)
+        inputs = inputs.to(model.device, dtype=torch.bfloat16)
 
         outputs = model.generate(**inputs, max_new_tokens=500)
         decoded_outputs = processor.batch_decode(
