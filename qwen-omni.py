@@ -9,6 +9,7 @@ model = Qwen3OmniMoeForConditionalGeneration.from_pretrained(
     MODEL_PATH,
     dtype="auto",
     device_map="auto",
+    attn_implementation="flash_attention_2",
 )
 processor = Qwen3OmniMoeProcessor.from_pretrained(MODEL_PATH)
 
@@ -52,7 +53,6 @@ for dataset in os.listdir(data_dir):
             },
         ]
 
-        # Preparation for inference
         text = processor.apply_chat_template(
             conversation, add_generation_prompt=True, tokenize=False
         )
@@ -67,22 +67,13 @@ for dataset in os.listdir(data_dir):
         )
         inputs = inputs.to(model.device).to(model.dtype)
 
-        # --- DEBUG: replace the generate block with this ---
         output = model.generate(
-            **inputs,
-            thinker_return_dict_in_generate=True,
-        )
-        print(f"[DEBUG] output type: {type(output)}")
-        print(f"[DEBUG] output: {output}")
-
-        # Inference
-        text_ids, audio = model.generate(
             **inputs,
             thinker_return_dict_in_generate=True,
         )
 
         response = processor.batch_decode(
-            text_ids.sequences[:, inputs["input_ids"].shape[1]:],
+            output.sequences[:, inputs["input_ids"].shape[1]:],
             skip_special_tokens=True,
             clean_up_tokenization_spaces=False,
         )[0]
