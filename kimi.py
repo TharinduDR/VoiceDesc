@@ -3,11 +3,11 @@ import torch
 from kimia_infer.api.kimia import KimiAudio
 
 model_id = "moonshotai/Kimi-Audio-7B-Instruct"
-device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 # Load the model — load_detokenizer=False since we only need text output
 model = KimiAudio(model_path=model_id, load_detokenizer=False)
-model.to(device)
+
 
 sampling_params = {
     "audio_temperature": 0.8,
