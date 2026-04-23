@@ -7,7 +7,8 @@ model_id = "mispeech/midashenglm-7b-0804-bf16"
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
     trust_remote_code=True,
-    torch_dtype=torch.bfloat16,
+    dtype=torch.bfloat16,
+    low_cpu_mem_usage=False,
 )
 model = model.to("cuda")
 tokenizer = AutoTokenizer.from_pretrained(model_id)
