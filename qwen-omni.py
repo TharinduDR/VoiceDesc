@@ -67,6 +67,14 @@ for dataset in os.listdir(data_dir):
         )
         inputs = inputs.to(model.device).to(model.dtype)
 
+        # --- DEBUG: replace the generate block with this ---
+        output = model.generate(
+            **inputs,
+            thinker_return_dict_in_generate=True,
+        )
+        print(f"[DEBUG] output type: {type(output)}")
+        print(f"[DEBUG] output: {output}")
+
         # Inference
         text_ids, audio = model.generate(
             **inputs,
